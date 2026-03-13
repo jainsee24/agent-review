@@ -802,14 +802,29 @@
         Review Options
       </div>
       <div class="card-body">
-        <label for="api-key">Anthropic API Key</label>
-        <div style="position:relative;">
-          <input type="password" id="api-key" placeholder="sk-ant-..." autocomplete="off"
-            style="width:100%;padding:10px 36px 10px 12px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;margin-bottom:4px;outline:none;font-family:monospace;transition:border-color 0.15s;"
-            onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
-          <button onclick="toggleApiKeyVisibility()" style="position:absolute;right:8px;top:8px;background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:14px;padding:2px;" title="Show/hide key" id="api-key-toggle">&#x1F441;</button>
+        <label>Authentication</label>
+        <div style="display:flex;gap:0;margin-bottom:8px;border:1px solid var(--border);border-radius:6px;overflow:hidden;">
+          <button id="auth-tab-cli" onclick="setAuthMode('cli')"
+            style="flex:1;padding:8px 12px;font-size:12px;font-weight:500;cursor:pointer;border:none;transition:all 0.15s;background:var(--accent);color:#fff;">
+            Use Claude Code Auth
+          </button>
+          <button id="auth-tab-api" onclick="setAuthMode('api_key')"
+            style="flex:1;padding:8px 12px;font-size:12px;font-weight:500;cursor:pointer;border:none;transition:all 0.15s;background:var(--surface);color:var(--text-dim);">
+            API Key
+          </button>
         </div>
-        <small style="color:var(--text-dim);font-size:11px;display:block;margin-bottom:14px;">Required. Stored in browser only, never saved on the server.</small>
+        <div id="auth-cli-info" style="margin-bottom:14px;">
+          <small style="color:var(--green);font-size:11px;display:block;">Uses your existing Claude Code login. No API key needed.</small>
+        </div>
+        <div id="auth-apikey-section" style="display:none;">
+          <div style="position:relative;">
+            <input type="password" id="api-key" placeholder="sk-ant-..." autocomplete="off"
+              style="width:100%;padding:10px 36px 10px 12px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;margin-bottom:4px;outline:none;font-family:monospace;transition:border-color 0.15s;"
+              onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
+            <button onclick="toggleApiKeyVisibility()" style="position:absolute;right:8px;top:8px;background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:14px;padding:2px;" title="Show/hide key" id="api-key-toggle">&#x1F441;</button>
+          </div>
+          <small style="color:var(--text-dim);font-size:11px;display:block;margin-bottom:14px;">Stored in browser only, never saved on the server.</small>
+        </div>
 
         <label for="review-mode">Review Mode</label>
         <select id="review-mode">
@@ -1094,6 +1109,31 @@ AGENT_NAMES.forEach(name => {
 
 let suppFiles = [];
 
+let authMode = 'cli';
+
+function setAuthMode(mode) {
+  authMode = mode;
+  const tabCli = document.getElementById('auth-tab-cli');
+  const tabApi = document.getElementById('auth-tab-api');
+  const cliInfo = document.getElementById('auth-cli-info');
+  const apiSection = document.getElementById('auth-apikey-section');
+  if (mode === 'cli') {
+    tabCli.style.background = 'var(--accent)';
+    tabCli.style.color = '#fff';
+    tabApi.style.background = 'var(--surface)';
+    tabApi.style.color = 'var(--text-dim)';
+    cliInfo.style.display = 'block';
+    apiSection.style.display = 'none';
+  } else {
+    tabApi.style.background = 'var(--accent)';
+    tabApi.style.color = '#fff';
+    tabCli.style.background = 'var(--surface)';
+    tabCli.style.color = 'var(--text-dim)';
+    cliInfo.style.display = 'none';
+    apiSection.style.display = 'block';
+  }
+}
+
 function toggleApiKeyVisibility() {
   const input = document.getElementById('api-key');
   input.type = input.type === 'password' ? 'text' : 'password';
@@ -1335,11 +1375,14 @@ async function startReview() {
     alert('Please select a paper PDF.');
     return;
   }
-  const apiKey = document.getElementById('api-key').value.trim();
-  if (!apiKey) {
-    alert('Please enter your Anthropic API key.');
-    document.getElementById('api-key').focus();
-    return;
+  let apiKey = '';
+  if (authMode === 'api_key') {
+    apiKey = document.getElementById('api-key').value.trim();
+    if (!apiKey) {
+      alert('Please enter your Anthropic API key.');
+      document.getElementById('api-key').focus();
+      return;
+    }
   }
 
   btn.disabled = true;
@@ -1371,7 +1414,8 @@ async function startReview() {
 
   const formData = new FormData();
   formData.append('paper_pdf', paperFile);
-  formData.append('api_key', apiKey);
+  formData.append('auth_mode', authMode);
+  if (apiKey) formData.append('api_key', apiKey);
   formData.append('review_mode', document.getElementById('review-mode').value);
   formData.append('model', document.getElementById('model').value);
   formData.append('enable_injection', document.getElementById('opt-injection').checked);

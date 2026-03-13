@@ -132,10 +132,11 @@ def _run_pipeline_bg(job_id: str, config: PipelineConfig, **kwargs):
     job = JOBS[job_id]
     workspace = Path(job["workspace"])
 
-    # Set API key for this pipeline run
+    # Set API key for this pipeline run (only if using api_key auth mode)
     api_key = kwargs.get("api_key")
     if api_key:
         os.environ["ANTHROPIC_API_KEY"] = api_key
+    # If no API key, claude_agent_sdk uses existing Claude Code auth
 
     agent_models = kwargs.get("agent_models")
     model = kwargs.get("model")
@@ -393,8 +394,9 @@ def api_run():
     if not paper_pdf or not paper_pdf.filename:
         return jsonify({"error": "Paper PDF is required"}), 400
 
+    auth_mode = request.form.get("auth_mode", "api_key")
     api_key = request.form.get("api_key", "").strip()
-    if not api_key:
+    if auth_mode == "api_key" and not api_key:
         return jsonify({"error": "Anthropic API key is required"}), 400
 
     review_mode = request.form.get("review_mode", "peer_review")
