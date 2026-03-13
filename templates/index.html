@@ -1,0 +1,1700 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AgentReview - AI Paper Review</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --surface: #161b22;
+    --border: #30363d;
+    --text: #e6edf3;
+    --text-dim: #8b949e;
+    --accent: #58a6ff;
+    --green: #3fb950;
+    --yellow: #d29922;
+    --red: #f85149;
+    --purple: #bc8cff;
+    --cyan: #79c0ff;
+    --orange: #f0883e;
+    --radius: 8px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    min-height: 100vh;
+  }
+
+  header {
+    border-bottom: 1px solid var(--border);
+    padding: 16px 24px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  header h1 {
+    font-size: 20px;
+    font-weight: 600;
+    background: linear-gradient(135deg, var(--accent), var(--green));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  header .badge {
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+  }
+
+  .container {
+    max-width: 1800px;
+    margin: 0 auto;
+    padding: 24px;
+    display: grid;
+    grid-template-columns: 340px 1fr 480px;
+    gap: 20px;
+  }
+
+  @media (max-width: 1200px) {
+    .container { grid-template-columns: 340px 1fr; }
+    #review-panel { display: none; }
+  }
+  @media (max-width: 900px) {
+    .container { grid-template-columns: 1fr; }
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden;
+  }
+  .card-header {
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border);
+    font-size: 14px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .card-body { padding: 18px; }
+
+  label {
+    display: block;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-dim);
+    margin-bottom: 6px;
+  }
+  select {
+    width: 100%;
+    padding: 10px 12px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-size: 14px;
+    margin-bottom: 14px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  select:focus { border-color: var(--accent); }
+
+  /* File Upload Dropzone */
+  .dropzone {
+    border: 2px dashed var(--border);
+    border-radius: 8px;
+    padding: 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-bottom: 14px;
+    position: relative;
+    overflow: hidden;
+  }
+  .dropzone:hover, .dropzone.dragover {
+    border-color: var(--accent);
+    background: rgba(88, 166, 255, 0.05);
+  }
+  .dropzone input[type="file"] {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+  }
+  .dropzone-icon { font-size: 28px; margin-bottom: 8px; opacity: 0.6; }
+  .dropzone-text { font-size: 13px; color: var(--text-dim); }
+  .dropzone-text strong { color: var(--accent); }
+  .dropzone-filename {
+    margin-top: 8px;
+    font-size: 12px;
+    color: var(--green);
+    font-weight: 600;
+  }
+
+  .supp-list { font-size: 12px; margin-top: 4px; }
+  .supp-list .supp-item {
+    padding: 3px 0;
+    color: var(--cyan);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .supp-list .supp-remove {
+    color: var(--red);
+    cursor: pointer;
+    font-size: 14px;
+    border: none;
+    background: none;
+    padding: 0 4px;
+  }
+
+  .toggle-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .toggle-row:last-child { border-bottom: none; }
+  .toggle-label { font-size: 13px; }
+  .toggle-label small { color: var(--text-dim); display: block; }
+
+  .switch {
+    position: relative;
+    width: 40px;
+    height: 22px;
+    flex-shrink: 0;
+  }
+  .switch input { opacity: 0; width: 0; height: 0; }
+  .slider {
+    position: absolute;
+    cursor: pointer;
+    inset: 0;
+    background: var(--border);
+    border-radius: 22px;
+    transition: 0.2s;
+  }
+  .slider::before {
+    content: "";
+    position: absolute;
+    height: 16px;
+    width: 16px;
+    left: 3px;
+    bottom: 3px;
+    background: var(--text);
+    border-radius: 50%;
+    transition: 0.2s;
+  }
+  .switch input:checked + .slider { background: var(--accent); }
+  .switch input:checked + .slider::before { transform: translateX(18px); }
+
+  .btn {
+    width: 100%;
+    padding: 12px;
+    border: none;
+    border-radius: 6px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+    margin-top: 8px;
+  }
+  .btn-primary {
+    background: linear-gradient(135deg, var(--accent), #2563eb);
+    color: white;
+  }
+  .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
+  .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+  .btn-danger {
+    background: var(--red);
+    color: white;
+    display: none;
+  }
+
+  /* Center column: tabs for Log and Paper */
+  .center-tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .center-tab {
+    padding: 10px 18px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-dim);
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s;
+    background: none;
+    border-top: none;
+    border-left: none;
+    border-right: none;
+  }
+  .center-tab:hover { color: var(--text); }
+  .center-tab.active {
+    color: var(--accent);
+    border-bottom-color: var(--accent);
+  }
+  .center-tab-content { display: none; }
+  .center-tab-content.active { display: flex; flex-direction: column; }
+
+  /* Log Panel */
+  #log {
+    flex: 1;
+    overflow-y: auto;
+    padding: 14px;
+    font-family: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace;
+    font-size: 12.5px;
+    line-height: 1.7;
+    min-height: 500px;
+    max-height: calc(100vh - 200px);
+    background: var(--bg);
+  }
+  #log::-webkit-scrollbar { width: 6px; }
+  #log::-webkit-scrollbar-track { background: transparent; }
+  #log::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  .log-entry { padding: 2px 0; word-break: break-word; }
+  .log-stage {
+    color: var(--green);
+    font-weight: 600;
+    margin-top: 10px;
+    padding: 6px 10px;
+    background: rgba(63, 185, 80, 0.08);
+    border-left: 3px solid var(--green);
+    border-radius: 0 4px 4px 0;
+  }
+  .log-agent {
+    color: var(--cyan);
+    font-weight: 600;
+    margin-top: 8px;
+    padding: 4px 10px;
+    background: rgba(121, 192, 255, 0.06);
+    border-left: 3px solid var(--cyan);
+    border-radius: 0 4px 4px 0;
+  }
+  .log-tool {
+    color: var(--yellow);
+    padding-left: 16px;
+  }
+  .log-tool .tool-name { font-weight: 600; }
+  .log-tool .tool-path { color: var(--text-dim); }
+  .log-thinking {
+    color: var(--purple);
+    padding-left: 16px;
+    font-style: italic;
+    opacity: 0.8;
+  }
+  .log-text {
+    color: var(--text);
+    padding-left: 16px;
+    white-space: pre-wrap;
+  }
+  .log-error {
+    color: var(--red);
+    font-weight: 600;
+    padding: 4px 10px;
+    background: rgba(248, 81, 73, 0.08);
+    border-left: 3px solid var(--red);
+  }
+  .log-progress {
+    color: var(--text-dim);
+    padding-left: 16px;
+    font-size: 11.5px;
+  }
+  .log-done {
+    color: var(--green);
+    font-weight: 600;
+    margin-top: 8px;
+    padding: 8px 12px;
+    background: rgba(63, 185, 80, 0.1);
+    border-radius: 6px;
+  }
+  .log-system { color: var(--text-dim); font-size: 11.5px; }
+  .log-parallel {
+    color: var(--purple);
+    font-weight: 600;
+    margin-top: 10px;
+    padding: 6px 10px;
+    background: rgba(188, 140, 255, 0.08);
+    border-left: 3px solid var(--purple);
+    border-radius: 0 4px 4px 0;
+  }
+
+  .status-bar {
+    padding: 10px 18px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+  .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--border);
+    flex-shrink: 0;
+  }
+  .status-dot.running {
+    background: var(--green);
+    animation: pulse 1.5s infinite;
+  }
+  .status-dot.error { background: var(--red); }
+  .status-dot.done { background: var(--accent); }
+
+  .token-stats {
+    font-family: 'JetBrains Mono', 'Fira Code', monospace;
+    font-size: 11px;
+    color: var(--purple);
+    margin-left: 12px;
+    padding: 2px 8px;
+    background: rgba(188, 140, 255, 0.08);
+    border-radius: 4px;
+    border: 1px solid rgba(188, 140, 255, 0.15);
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  /* Pipeline Visualization */
+  .pipeline-viz {
+    padding: 4px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .pipeline-phase {
+    position: relative;
+  }
+  .phase-label {
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-dim);
+    padding: 4px 8px 2px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .phase-label .phase-line {
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+  .phase-badge {
+    font-size: 8px;
+    padding: 1px 6px;
+    border-radius: 3px;
+    background: rgba(188, 140, 255, 0.12);
+    color: var(--purple);
+    font-weight: 600;
+    letter-spacing: 0.5px;
+  }
+
+  /* Agent Cards */
+  .agent-cards-list {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
+  .agent-card-live {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: hidden;
+    transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .agent-card-live.active {
+    border-color: var(--cyan);
+    box-shadow: 0 0 16px rgba(121, 192, 255, 0.15);
+  }
+  .agent-card-live.done {
+    border-color: var(--green);
+    box-shadow: 0 0 8px rgba(63, 185, 80, 0.1);
+  }
+  .ac-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 7px 10px;
+  }
+  .ac-icon {
+    width: 24px; height: 24px;
+    border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text-dim);
+    flex-shrink: 0;
+    transition: all 0.3s;
+    position: relative;
+  }
+  .agent-card-live.active .ac-icon {
+    background: var(--cyan);
+    border-color: var(--cyan);
+    color: #fff;
+    box-shadow: 0 0 12px rgba(121, 192, 255, 0.5);
+  }
+  .agent-card-live.done .ac-icon {
+    background: var(--green);
+    border-color: var(--green);
+    color: #fff;
+  }
+
+  /* Animated spinner ring around active agent icon */
+  .agent-card-live.active .ac-icon::after {
+    content: "";
+    position: absolute;
+    inset: -3px;
+    border-radius: 8px;
+    border: 2px solid transparent;
+    border-top-color: var(--cyan);
+    border-right-color: var(--cyan);
+    animation: spinRing 1s linear infinite;
+  }
+  @keyframes spinRing {
+    to { transform: rotate(360deg); }
+  }
+
+  .ac-name {
+    font-size: 11.5px;
+    font-weight: 600;
+    flex: 1;
+    color: var(--text-dim);
+    transition: color 0.3s;
+  }
+  .agent-card-live.active .ac-name { color: var(--cyan); }
+  .agent-card-live.done .ac-name { color: var(--green); }
+  .ac-badge {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    padding: 1px 6px;
+    border-radius: 3px;
+    background: rgba(255,255,255,0.04);
+    color: var(--text-dim);
+    transition: all 0.3s;
+  }
+  .agent-card-live.active .ac-badge {
+    background: rgba(121, 192, 255, 0.15);
+    color: var(--cyan);
+  }
+  .agent-card-live.done .ac-badge {
+    background: rgba(63, 185, 80, 0.15);
+    color: var(--green);
+  }
+  .ac-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--border);
+    flex-shrink: 0;
+    transition: all 0.3s;
+  }
+  .agent-card-live.active .ac-dot {
+    background: var(--cyan);
+    box-shadow: 0 0 6px var(--cyan);
+    animation: acDotPulse 1.5s infinite;
+  }
+  .agent-card-live.done .ac-dot {
+    background: var(--green);
+    box-shadow: 0 0 4px var(--green);
+  }
+  @keyframes acDotPulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.3; }
+  }
+
+  /* Activity detail inside agent card */
+  .ac-activity {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .agent-card-live.active .ac-activity {
+    max-height: 80px;
+  }
+  .ac-activity-inner {
+    padding: 4px 10px 6px;
+    border-top: 1px solid var(--border);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    line-height: 1.5;
+    color: var(--text-dim);
+    background: rgba(0, 0, 0, 0.15);
+  }
+  .ac-activity-line {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding: 1px 0;
+    animation: fadeSlideIn 0.3s ease-out;
+  }
+  @keyframes fadeSlideIn {
+    from { opacity: 0; transform: translateY(-4px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .ac-activity-line .ac-tool { color: var(--yellow); font-weight: 600; }
+  .ac-activity-line .ac-path { color: var(--text-dim); }
+  .ac-activity-line .ac-think { color: var(--purple); font-style: italic; }
+  .ac-activity-line .ac-search { color: var(--orange); }
+
+  .ac-footer {
+    display: none;
+    padding: 3px 10px;
+    font-size: 9px;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--text-dim);
+    justify-content: space-between;
+    border-top: 1px solid var(--border);
+  }
+  .agent-card-live.active .ac-footer,
+  .agent-card-live.done .ac-footer {
+    display: flex;
+  }
+
+  /* Parallel indicator: animated bracket + glow */
+  .parallel-bracket {
+    position: relative;
+    margin: 0 0 0 6px;
+    padding: 2px 0 2px 10px;
+  }
+  .parallel-bracket::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    border-radius: 2px;
+    background: linear-gradient(180deg, var(--purple), var(--cyan));
+    animation: parallelPulse 2s ease-in-out infinite;
+  }
+  @keyframes parallelPulse {
+    0%, 100% { opacity: 0.6; }
+    50% { opacity: 1; box-shadow: 0 0 8px rgba(188, 140, 255, 0.4); }
+  }
+  .parallel-bracket.done::before {
+    background: var(--green);
+    animation: none;
+    opacity: 0.5;
+  }
+
+  /* Active agents counter with animation */
+  .active-count {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    background: rgba(121, 192, 255, 0.1);
+    border: 1px solid rgba(121, 192, 255, 0.2);
+    color: var(--cyan);
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 600;
+  }
+  .active-count .ac-spinner {
+    width: 8px;
+    height: 8px;
+    border: 1.5px solid rgba(121, 192, 255, 0.3);
+    border-top-color: var(--cyan);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Review Panel */
+  #review-panel {
+    display: flex;
+    flex-direction: column;
+    max-height: calc(100vh - 100px);
+  }
+  #review-content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+    font-size: 14px;
+    line-height: 1.7;
+    min-height: 400px;
+    background: var(--bg);
+  }
+  #review-content::-webkit-scrollbar { width: 6px; }
+  #review-content::-webkit-scrollbar-track { background: transparent; }
+  #review-content::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  .review-empty {
+    color: var(--text-dim);
+    opacity: 0.5;
+    font-style: italic;
+    text-align: center;
+    padding: 40px 20px;
+  }
+
+  /* Review markdown styling */
+  .review-md h2 {
+    color: var(--accent);
+    font-size: 16px;
+    margin-top: 20px;
+    margin-bottom: 8px;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border);
+  }
+  .review-md h3 {
+    color: var(--cyan);
+    font-size: 14px;
+    margin-top: 16px;
+    margin-bottom: 6px;
+  }
+  .review-md p { margin-bottom: 10px; }
+  .review-md ul, .review-md ol { padding-left: 20px; margin-bottom: 10px; }
+  .review-md li { margin-bottom: 4px; }
+  .review-md strong { color: var(--orange); }
+  .review-md code {
+    background: rgba(88, 166, 255, 0.1);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 12px;
+  }
+  .review-md blockquote {
+    border-left: 3px solid var(--purple);
+    padding: 8px 14px;
+    margin: 10px 0;
+    background: rgba(188, 140, 255, 0.05);
+    color: var(--text-dim);
+  }
+
+  /* Rating badges */
+  .rating-bar {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin: 12px 0;
+  }
+  .rating-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    text-align: center;
+    min-width: 90px;
+  }
+  .rating-item .rating-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-dim);
+    margin-bottom: 4px;
+  }
+  .rating-item .rating-value { font-size: 22px; font-weight: 700; }
+  .rating-item .rating-value.high { color: var(--green); }
+  .rating-item .rating-value.mid { color: var(--yellow); }
+  .rating-item .rating-value.low { color: var(--red); }
+
+  .recommendation-badge {
+    display: inline-block;
+    padding: 8px 20px;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 700;
+    margin: 12px 0;
+  }
+  .recommendation-badge.accept { background: rgba(63, 185, 80, 0.15); color: var(--green); border: 1px solid var(--green); }
+  .recommendation-badge.borderline { background: rgba(210, 153, 34, 0.15); color: var(--yellow); border: 1px solid var(--yellow); }
+  .recommendation-badge.reject { background: rgba(248, 81, 73, 0.15); color: var(--red); border: 1px solid var(--red); }
+
+  /* Paper view tab */
+  #paper-view {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+    font-size: 13px;
+    line-height: 1.7;
+    min-height: 500px;
+    max-height: calc(100vh - 200px);
+    background: var(--bg);
+  }
+  #paper-view::-webkit-scrollbar { width: 6px; }
+  #paper-view::-webkit-scrollbar-track { background: transparent; }
+  #paper-view::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  .paper-md h1 { font-size: 18px; color: var(--accent); margin-bottom: 8px; }
+  .paper-md h2 { font-size: 16px; color: var(--cyan); margin-top: 16px; margin-bottom: 6px; }
+  .paper-md h3 { font-size: 14px; color: var(--text); margin-top: 12px; margin-bottom: 4px; }
+  .paper-md p { margin-bottom: 8px; }
+  .paper-md table { border-collapse: collapse; margin: 8px 0; font-size: 12px; }
+  .paper-md th, .paper-md td { border: 1px solid var(--border); padding: 4px 8px; }
+  .paper-md th { background: var(--surface); }
+
+  /* Checker badge */
+  .checker-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 600;
+  }
+  .checker-badge.pass {
+    background: rgba(63, 185, 80, 0.12);
+    color: var(--green);
+    border: 1px solid rgba(63, 185, 80, 0.3);
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>AgentReview</h1>
+  <span class="badge">AI Paper Review</span>
+  <span class="badge">Multi-Agent &middot; Claude</span>
+  <span id="parallel-indicator" style="display:none" class="active-count"><span class="ac-spinner"></span><span id="parallel-text">0 agents running</span></span>
+</header>
+
+<div class="container">
+  <!-- Left: Input + Agents -->
+  <div>
+    <div class="card" style="margin-bottom: 16px;">
+      <div class="card-header">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M3.5 3.25a.75.75 0 01.75-.75h8.5a.75.75 0 01.75.75v1.5a.75.75 0 01-1.5 0V4H5v1.75a.75.75 0 01-1.5 0v-2.5z"/><path d="M3.5 9.75a.75.75 0 01.75-.75h8.5a.75.75 0 010 1.5h-8.5a.75.75 0 01-.75-.75z"/><path d="M3.5 12.25a.75.75 0 01.75-.75h5a.75.75 0 010 1.5h-5a.75.75 0 01-.75-.75z"/><path d="M3.5 6.5a.75.75 0 01.75-.75h8.5a.75.75 0 010 1.5h-8.5a.75.75 0 01-.75-.75z"/></svg>
+        Paper Upload
+      </div>
+      <div class="card-body">
+        <label>Main Paper PDF <span style="color: var(--red);">*</span></label>
+        <div class="dropzone" id="paper-dropzone">
+          <input type="file" id="paper-file" accept=".pdf" onchange="handlePaperSelect(this)">
+          <div class="dropzone-icon">&#x1F4C4;</div>
+          <div class="dropzone-text">
+            Drop PDF here or <strong>click to browse</strong>
+          </div>
+          <div class="dropzone-filename" id="paper-filename"></div>
+        </div>
+
+        <label>Supplementary Files <small style="color: var(--text-dim);">(PDFs, ZIPs, images)</small></label>
+        <div class="dropzone" id="supp-dropzone" style="padding: 16px;">
+          <input type="file" id="supp-files" multiple accept=".pdf,.zip,.png,.jpg,.jpeg,.mp4,.tar.gz" onchange="handleSuppSelect(this)">
+          <div class="dropzone-text">
+            Drop supplementary files or <strong>click to browse</strong>
+          </div>
+        </div>
+        <div class="supp-list" id="supp-list"></div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom: 16px;">
+      <div class="card-header">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path fill-rule="evenodd" d="M7.429 1.525a6.593 6.593 0 011.142 0c.036.003.108.036.137.146l.289 1.105c.147.56.55.967.997 1.189.174.086.341.183.501.29.417.278.97.423 1.53.27l1.102-.303c.11-.03.175.016.195.046.219.31.41.641.573.989.014.031.022.11-.059.19l-.815.806c-.411.406-.562.957-.53 1.456a4.588 4.588 0 010 .582c-.032.499.119 1.05.53 1.456l.815.806c.08.08.073.159.059.19a6.494 6.494 0 01-.573.99c-.02.029-.086.074-.195.045l-1.103-.303c-.559-.153-1.112-.008-1.529.27-.16.107-.327.204-.5.29-.449.222-.851.628-.998 1.189l-.289 1.105c-.03.11-.102.143-.137.146a6.613 6.613 0 01-1.142 0c-.036-.003-.108-.037-.137-.146l-.289-1.105c-.147-.56-.55-.967-.997-1.189a4.502 4.502 0 01-.501-.29c-.417-.278-.97-.423-1.53-.27l-1.102.303c-.11.03-.175-.016-.195-.046a6.492 6.492 0 01-.573-.989c-.014-.031-.022-.11.059-.19l.815-.806c.411-.406.562-.957.53-1.456a4.587 4.587 0 010-.582c.032-.499-.119-1.05-.53-1.456l-.815-.806c-.08-.08-.073-.159-.059-.19a6.44 6.44 0 01.573-.99c.02-.029.086-.074.195-.045l1.103.303c.559.153 1.112.008 1.529-.27.16-.107.327-.204.5-.29.449-.222.851-.628.998-1.189l.289-1.105c.03-.11.102-.143.137-.146zM8 0c-.236 0-.47.01-.701.03-.743.065-1.29.615-1.458 1.261l-.29 1.106c-.017.066-.078.158-.211.224a5.994 5.994 0 00-.668.386c-.123.082-.233.09-.3.071L3.27 2.776c-.644-.177-1.392.02-1.82.63a7.977 7.977 0 00-.704 1.217c-.315.675-.112 1.422.312 1.942l.814.806c.05.048.098.147.088.294a6.084 6.084 0 000 .772c.01.147-.038.246-.088.294l-.814.806c-.424.52-.627 1.267-.312 1.942.205.44.44.86.704 1.218.428.609 1.176.806 1.82.63l1.103-.303c.066-.019.176-.011.299.071.213.143.436.272.668.386.133.066.194.158.212.224l.289 1.106c.169.646.715 1.196 1.458 1.26a8.094 8.094 0 001.402 0c.743-.064 1.29-.614 1.458-1.26l.29-1.106c.017-.066.078-.158.211-.224a5.98 5.98 0 00.668-.386c.123-.082.233-.09.3-.071l1.102.302c.644.177 1.392-.02 1.82-.63.264-.358.5-.778.704-1.217.315-.675.112-1.422-.312-1.942l-.814-.806c-.05-.048-.098-.147-.088-.294a6.1 6.1 0 000-.772c-.01-.147.039-.246.088-.294l.814-.806c.424-.52.627-1.267.312-1.942a7.97 7.97 0 00-.704-1.218c-.428-.609-1.176-.806-1.82-.63l-1.103.303c-.066.019-.176.011-.299-.071a5.991 5.991 0 00-.668-.386c-.133-.066-.194-.158-.212-.224L10.16 1.29C9.99.645 9.444.095 8.701.031A8.094 8.094 0 008 0zm1.5 8a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0zM11 8a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+        Review Options
+      </div>
+      <div class="card-body">
+        <label for="api-key">Anthropic API Key</label>
+        <div style="position:relative;">
+          <input type="password" id="api-key" placeholder="sk-ant-..." autocomplete="off"
+            style="width:100%;padding:10px 36px 10px 12px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:13px;margin-bottom:4px;outline:none;font-family:monospace;transition:border-color 0.15s;"
+            onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
+          <button onclick="toggleApiKeyVisibility()" style="position:absolute;right:8px;top:8px;background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:14px;padding:2px;" title="Show/hide key" id="api-key-toggle">&#x1F441;</button>
+        </div>
+        <small style="color:var(--text-dim);font-size:11px;display:block;margin-bottom:14px;">Required. Stored in browser only, never saved on the server.</small>
+
+        <label for="review-mode">Review Mode</label>
+        <select id="review-mode">
+          <option value="peer_review" selected>Peer Review -- reviewing someone else's paper</option>
+          <option value="pre_submission">Pre-Submission -- reviewing my own paper before submitting</option>
+        </select>
+
+        <label for="model">Model</label>
+        <select id="model">
+          <option value="sonnet" selected>Sonnet -- fast, recommended</option>
+          <option value="opus">Opus -- best quality, thorough</option>
+          <option value="haiku">Haiku -- fastest, lightweight</option>
+        </select>
+
+        <div class="toggle-row">
+          <div class="toggle-label">Injection Detection<small>Scan for hidden LLM prompts</small></div>
+          <label class="switch"><input type="checkbox" id="opt-injection" checked><span class="slider"></span></label>
+        </div>
+        <div class="toggle-row">
+          <div class="toggle-label">Novelty Analysis<small>Deep search for prior work</small></div>
+          <label class="switch"><input type="checkbox" id="opt-novelty" checked><span class="slider"></span></label>
+        </div>
+        <div class="toggle-row">
+          <div class="toggle-label">Baseline Search<small>Find missing baselines</small></div>
+          <label class="switch"><input type="checkbox" id="opt-baselines" checked><span class="slider"></span></label>
+        </div>
+        <div class="toggle-row">
+          <div class="toggle-label">Soundness Check<small>Math & methodology rigor</small></div>
+          <label class="switch"><input type="checkbox" id="opt-soundness" checked><span class="slider"></span></label>
+        </div>
+        <div class="toggle-row">
+          <div class="toggle-label">Writing Quality<small>Grammar, clarity, figures</small></div>
+          <label class="switch"><input type="checkbox" id="opt-writing-quality" checked><span class="slider"></span></label>
+        </div>
+        <div class="toggle-row">
+          <div class="toggle-label">Reproducibility<small>Datasets, hyperparams, seeds</small></div>
+          <label class="switch"><input type="checkbox" id="opt-reproducibility" checked><span class="slider"></span></label>
+        </div>
+        <div class="toggle-row">
+          <div class="toggle-label">Ethics & Limitations<small>Impact, bias, limitations</small></div>
+          <label class="switch"><input type="checkbox" id="opt-ethics" checked><span class="slider"></span></label>
+        </div>
+        <div class="toggle-row">
+          <div class="toggle-label">Code Review<small>Auto-enabled if ZIP uploaded</small></div>
+          <label class="switch"><input type="checkbox" id="opt-code-review"><span class="slider"></span></label>
+        </div>
+
+        <button class="btn btn-primary" id="btn-run" onclick="startReview()">
+          Review Paper
+        </button>
+        <button class="btn btn-danger" id="btn-stop" onclick="stopPipeline()">
+          Stop Review
+        </button>
+      </div>
+    </div>
+
+    <!-- Pipeline Agent Cards -->
+    <div class="card">
+      <div class="card-header">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M1.5 3.25a2.25 2.25 0 113 2.122v5.256a2.251 2.251 0 11-1.5 0V5.372A2.25 2.25 0 011.5 3.25zm5.677-.177L9.573.677A.25.25 0 0110 .854V2.5h1A2.5 2.5 0 0113.5 5v5.628a2.251 2.251 0 11-1.5 0V5a1 1 0 00-1-1h-1v1.646a.25.25 0 01-.427.177L7.177 3.427a.25.25 0 010-.354z"/></svg>
+        Agent Pipeline
+        <span id="agents-counter" style="margin-left:auto;font-size:10px;font-family:'JetBrains Mono',monospace;color:var(--text-dim);">0 / 11</span>
+      </div>
+      <div class="card-body" style="padding:6px 10px;">
+        <div class="pipeline-viz">
+          <!-- Phase 1: Sequential parse -->
+          <div class="pipeline-phase">
+            <div class="phase-label">Phase 1 <span class="phase-line"></span> Sequential</div>
+            <div class="agent-cards-list">
+              <div class="agent-card-live" id="chip-parser" data-agent="parser">
+                <div class="ac-header">
+                  <div class="ac-dot"></div>
+                  <div class="ac-icon">&#x1F4C4;</div>
+                  <div class="ac-name">Parser</div>
+                  <span class="ac-badge" id="ac-status-parser"></span>
+                </div>
+                <div class="ac-activity"><div class="ac-activity-inner" id="ac-term-parser"></div></div>
+                <div class="ac-footer"><span id="ac-tools-parser">0 tools</span><span id="ac-time-parser"></span></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Phase 2: Parallel analysis -->
+          <div class="pipeline-phase">
+            <div class="phase-label">Phase 2 <span class="phase-line"></span> <span class="phase-badge">PARALLEL</span></div>
+            <div id="parallel-group" class="parallel-bracket">
+              <div class="agent-cards-list">
+                <div class="agent-card-live" id="chip-injection_detector" data-agent="injection_detector">
+                  <div class="ac-header">
+                    <div class="ac-dot"></div>
+                    <div class="ac-icon">&#x1F6E1;</div>
+                    <div class="ac-name">Injection Detector</div>
+                    <span class="ac-badge" id="ac-status-injection_detector"></span>
+                  </div>
+                  <div class="ac-activity"><div class="ac-activity-inner" id="ac-term-injection_detector"></div></div>
+                  <div class="ac-footer"><span id="ac-tools-injection_detector">0 tools</span><span id="ac-time-injection_detector"></span></div>
+                </div>
+                <div class="agent-card-live" id="chip-novelty" data-agent="novelty">
+                  <div class="ac-header">
+                    <div class="ac-dot"></div>
+                    <div class="ac-icon">&#x1F4A1;</div>
+                    <div class="ac-name">Novelty</div>
+                    <span class="ac-badge" id="ac-status-novelty"></span>
+                  </div>
+                  <div class="ac-activity"><div class="ac-activity-inner" id="ac-term-novelty"></div></div>
+                  <div class="ac-footer"><span id="ac-tools-novelty">0 tools</span><span id="ac-time-novelty"></span></div>
+                </div>
+                <div class="agent-card-live" id="chip-baselines" data-agent="baselines">
+                  <div class="ac-header">
+                    <div class="ac-dot"></div>
+                    <div class="ac-icon">&#x1F50D;</div>
+                    <div class="ac-name">Baselines</div>
+                    <span class="ac-badge" id="ac-status-baselines"></span>
+                  </div>
+                  <div class="ac-activity"><div class="ac-activity-inner" id="ac-term-baselines"></div></div>
+                  <div class="ac-footer"><span id="ac-tools-baselines">0 tools</span><span id="ac-time-baselines"></span></div>
+                </div>
+                <div class="agent-card-live" id="chip-code_reviewer" data-agent="code_reviewer">
+                  <div class="ac-header">
+                    <div class="ac-dot"></div>
+                    <div class="ac-icon">&#x1F4BB;</div>
+                    <div class="ac-name">Code Reviewer</div>
+                    <span class="ac-badge" id="ac-status-code_reviewer"></span>
+                  </div>
+                  <div class="ac-activity"><div class="ac-activity-inner" id="ac-term-code_reviewer"></div></div>
+                  <div class="ac-footer"><span id="ac-tools-code_reviewer">0 tools</span><span id="ac-time-code_reviewer"></span></div>
+                </div>
+                <div class="agent-card-live" id="chip-soundness" data-agent="soundness">
+                  <div class="ac-header">
+                    <div class="ac-dot"></div>
+                    <div class="ac-icon">&#x2705;</div>
+                    <div class="ac-name">Soundness</div>
+                    <span class="ac-badge" id="ac-status-soundness"></span>
+                  </div>
+                  <div class="ac-activity"><div class="ac-activity-inner" id="ac-term-soundness"></div></div>
+                  <div class="ac-footer"><span id="ac-tools-soundness">0 tools</span><span id="ac-time-soundness"></span></div>
+                </div>
+                <div class="agent-card-live" id="chip-writing_quality" data-agent="writing_quality">
+                  <div class="ac-header">
+                    <div class="ac-dot"></div>
+                    <div class="ac-icon">&#x270D;</div>
+                    <div class="ac-name">Writing Quality</div>
+                    <span class="ac-badge" id="ac-status-writing_quality"></span>
+                  </div>
+                  <div class="ac-activity"><div class="ac-activity-inner" id="ac-term-writing_quality"></div></div>
+                  <div class="ac-footer"><span id="ac-tools-writing_quality">0 tools</span><span id="ac-time-writing_quality"></span></div>
+                </div>
+                <div class="agent-card-live" id="chip-reproducibility" data-agent="reproducibility">
+                  <div class="ac-header">
+                    <div class="ac-dot"></div>
+                    <div class="ac-icon">&#x1F504;</div>
+                    <div class="ac-name">Reproducibility</div>
+                    <span class="ac-badge" id="ac-status-reproducibility"></span>
+                  </div>
+                  <div class="ac-activity"><div class="ac-activity-inner" id="ac-term-reproducibility"></div></div>
+                  <div class="ac-footer"><span id="ac-tools-reproducibility">0 tools</span><span id="ac-time-reproducibility"></span></div>
+                </div>
+                <div class="agent-card-live" id="chip-ethics_limitations" data-agent="ethics_limitations">
+                  <div class="ac-header">
+                    <div class="ac-dot"></div>
+                    <div class="ac-icon">&#x2696;</div>
+                    <div class="ac-name">Ethics & Limitations</div>
+                    <span class="ac-badge" id="ac-status-ethics_limitations"></span>
+                  </div>
+                  <div class="ac-activity"><div class="ac-activity-inner" id="ac-term-ethics_limitations"></div></div>
+                  <div class="ac-footer"><span id="ac-tools-ethics_limitations">0 tools</span><span id="ac-time-ethics_limitations"></span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Phase 3: Synthesize -->
+          <div class="pipeline-phase">
+            <div class="phase-label">Phase 3 <span class="phase-line"></span> Sequential</div>
+            <div class="agent-cards-list">
+              <div class="agent-card-live" id="chip-synthesizer" data-agent="synthesizer">
+                <div class="ac-header">
+                  <div class="ac-dot"></div>
+                  <div class="ac-icon">&#x1F4DD;</div>
+                  <div class="ac-name">Synthesizer</div>
+                  <span class="ac-badge" id="ac-status-synthesizer"></span>
+                </div>
+                <div class="ac-activity"><div class="ac-activity-inner" id="ac-term-synthesizer"></div></div>
+                <div class="ac-footer"><span id="ac-tools-synthesizer">0 tools</span><span id="ac-time-synthesizer"></span></div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Phase 4: Review Checker -->
+          <div class="pipeline-phase">
+            <div class="phase-label">Phase 4 <span class="phase-line"></span> Quality Check</div>
+            <div class="agent-cards-list">
+              <div class="agent-card-live" id="chip-review_checker" data-agent="review_checker">
+                <div class="ac-header">
+                  <div class="ac-dot"></div>
+                  <div class="ac-icon">&#x1F9D0;</div>
+                  <div class="ac-name">Review Checker</div>
+                  <span class="ac-badge" id="ac-status-review_checker"></span>
+                </div>
+                <div class="ac-activity"><div class="ac-activity-inner" id="ac-term-review_checker"></div></div>
+                <div class="ac-footer"><span id="ac-tools-review_checker">0 tools</span><span id="ac-time-review_checker"></span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Center: Log + Paper tabs -->
+  <div class="card" id="center-panel" style="display:flex;flex-direction:column;max-height:calc(100vh - 100px);">
+    <div class="center-tabs">
+      <button class="center-tab active" onclick="switchCenterTab('log')">Live Pipeline Log</button>
+      <button class="center-tab" onclick="switchCenterTab('paper')">Parsed Paper</button>
+    </div>
+    <div id="tab-log" class="center-tab-content active" style="flex:1;overflow:hidden;">
+      <div id="log">
+        <div class="log-entry log-system">Ready. Upload a paper PDF and click Review Paper.</div>
+      </div>
+    </div>
+    <div id="tab-paper" class="center-tab-content" style="flex:1;overflow:hidden;">
+      <div id="paper-view">
+        <div class="review-empty">The parsed paper will appear here after the parser agent runs.</div>
+      </div>
+    </div>
+    <div class="status-bar">
+      <div class="status-dot" id="status-dot"></div>
+      <span id="status-text">Idle</span>
+      <span class="token-stats" id="token-stats"></span>
+      <span style="margin-left:auto" id="elapsed-text"></span>
+    </div>
+  </div>
+
+  <!-- Right: Review Output Panel -->
+  <div class="card" id="review-panel">
+    <div class="card-header">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M3.5 3.25a.75.75 0 01.75-.75h8.5a.75.75 0 01.75.75v1.5a.75.75 0 01-1.5 0V4H5v1.75a.75.75 0 01-1.5 0v-2.5z"/><path d="M3.5 9.75a.75.75 0 01.75-.75h8.5a.75.75 0 010 1.5h-8.5a.75.75 0 01-.75-.75z"/><path d="M3.5 12.25a.75.75 0 01.75-.75h5a.75.75 0 010 1.5h-5a.75.75 0 01-.75-.75z"/><path d="M3.5 6.5a.75.75 0 01.75-.75h8.5a.75.75 0 010 1.5h-8.5a.75.75 0 01-.75-.75z"/></svg>
+      Paper Review
+      <span id="checker-result" style="margin-left:8px;"></span>
+      <span style="margin-left:auto;font-size:10px;color:var(--text-dim);font-family:monospace;" id="review-status">Waiting</span>
+    </div>
+    <div id="review-ratings" style="display:none; padding: 14px 18px; border-bottom: 1px solid var(--border);">
+      <div id="recommendation-display"></div>
+      <div class="rating-bar" id="rating-bar"></div>
+    </div>
+    <div id="review-content">
+      <div class="review-empty">
+        The review will appear here once the pipeline completes.<br><br>
+        The multi-agent system will analyze:<br>
+        &#x1F4A1; Novelty & prior work<br>
+        &#x1F50D; Missing baselines<br>
+        &#x1F6E1; Injected text detection<br>
+        &#x2705; Soundness & methodology<br>
+        &#x270D; Writing quality & clarity<br>
+        &#x1F504; Reproducibility<br>
+        &#x2696; Ethics & limitations<br>
+        &#x1F4DD; Final synthesis<br>
+        &#x1F9D0; Quality verification
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+let currentJobId = null;
+let eventSource = null;
+let startTime = null;
+let elapsedTimer = null;
+let totalTokens = 0;
+
+const agentState = {};
+const AGENT_NAMES = ['parser', 'injection_detector', 'novelty', 'baselines', 'code_reviewer', 'soundness', 'writing_quality', 'reproducibility', 'ethics_limitations', 'synthesizer', 'review_checker'];
+const PARALLEL_AGENTS = new Set(['injection_detector', 'novelty', 'baselines', 'code_reviewer', 'soundness', 'writing_quality', 'reproducibility', 'ethics_limitations']);
+const TOTAL_AGENTS = AGENT_NAMES.length;
+let completedAgents = 0;
+let activeAgents = new Set();
+let paperFetched = false;
+
+AGENT_NAMES.forEach(name => {
+  agentState[name] = { tools: 0, startTime: null, status: 'idle' };
+});
+
+let suppFiles = [];
+
+function toggleApiKeyVisibility() {
+  const input = document.getElementById('api-key');
+  input.type = input.type === 'password' ? 'text' : 'password';
+}
+
+const log = document.getElementById('log');
+const btn = document.getElementById('btn-run');
+const dot = document.getElementById('status-dot');
+const statusText = document.getElementById('status-text');
+const elapsedText = document.getElementById('elapsed-text');
+const tokenStats = document.getElementById('token-stats');
+const reviewContent = document.getElementById('review-content');
+
+function escapeHtml(s) {
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+function formatTokens(n) {
+  if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
+  if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
+  return String(n);
+}
+
+function updateTokenDisplay() {
+  if (totalTokens === 0) { tokenStats.textContent = ''; return; }
+  tokenStats.textContent = formatTokens(totalTokens) + ' tokens';
+}
+
+function addLog(html, cls = '') {
+  const div = document.createElement('div');
+  div.className = 'log-entry ' + cls;
+  div.innerHTML = html;
+  log.appendChild(div);
+  log.scrollTop = log.scrollHeight;
+}
+
+function setStatus(state, text) {
+  dot.className = 'status-dot ' + state;
+  statusText.textContent = text;
+}
+
+// Center tab switching
+function switchCenterTab(tab) {
+  document.querySelectorAll('.center-tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.center-tab-content').forEach(t => t.classList.remove('active'));
+  if (tab === 'log') {
+    document.querySelectorAll('.center-tab')[0].classList.add('active');
+    document.getElementById('tab-log').classList.add('active');
+  } else {
+    document.querySelectorAll('.center-tab')[1].classList.add('active');
+    document.getElementById('tab-paper').classList.add('active');
+  }
+}
+
+// File upload handlers
+function handlePaperSelect(input) {
+  const file = input.files[0];
+  const nameEl = document.getElementById('paper-filename');
+  if (file) {
+    nameEl.textContent = file.name + ' (' + (file.size / 1024 / 1024).toFixed(1) + ' MB)';
+  } else {
+    nameEl.textContent = '';
+  }
+}
+
+function handleSuppSelect(input) {
+  const files = input.files;
+  for (let i = 0; i < files.length; i++) {
+    suppFiles.push(files[i]);
+    if (files[i].name.endsWith('.zip')) {
+      document.getElementById('opt-code-review').checked = true;
+    }
+  }
+  renderSuppList();
+}
+
+function renderSuppList() {
+  const list = document.getElementById('supp-list');
+  list.innerHTML = '';
+  suppFiles.forEach((f, i) => {
+    const div = document.createElement('div');
+    div.className = 'supp-item';
+    div.innerHTML = '<button class="supp-remove" onclick="removeSuppFile(' + i + ')">&#x2715;</button> ' + escapeHtml(f.name);
+    list.appendChild(div);
+  });
+}
+
+function removeSuppFile(idx) {
+  suppFiles.splice(idx, 1);
+  renderSuppList();
+}
+
+// Parallel agents indicator in header
+function updateParallelIndicator() {
+  const indicator = document.getElementById('parallel-indicator');
+  const text = document.getElementById('parallel-text');
+  const count = activeAgents.size;
+  if (count > 1) {
+    indicator.style.display = 'inline-flex';
+    text.textContent = count + ' agents running in parallel';
+  } else if (count === 1) {
+    indicator.style.display = 'inline-flex';
+    text.textContent = '1 agent running';
+  } else {
+    indicator.style.display = 'none';
+  }
+}
+
+// Agent card management - supports multiple active agents
+function setAgentActive(name) {
+  const chip = document.getElementById('chip-' + name);
+  if (!chip || agentState[name].status === 'done') return;
+
+  chip.classList.add('active');
+  chip.classList.remove('done');
+  activeAgents.add(name);
+  agentState[name].status = 'active';
+  agentState[name].startTime = agentState[name].startTime || Date.now();
+  const badge = document.getElementById('ac-status-' + name);
+  if (badge) badge.textContent = 'WORKING';
+
+  updateParallelIndicator();
+  updateStatusText();
+
+  chip.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function setAgentDone(name) {
+  const chip = document.getElementById('chip-' + name);
+  if (!chip || agentState[name].status === 'done') return;
+
+  chip.classList.remove('active');
+  chip.classList.add('done');
+  activeAgents.delete(name);
+  agentState[name].status = 'done';
+  completedAgents++;
+  document.getElementById('agents-counter').textContent = completedAgents + ' / ' + TOTAL_AGENTS;
+  const badge = document.getElementById('ac-status-' + name);
+  if (badge) badge.textContent = 'DONE';
+  if (agentState[name].startTime) {
+    const el = ((Date.now() - agentState[name].startTime) / 1000).toFixed(0);
+    const timeEl = document.getElementById('ac-time-' + name);
+    if (timeEl) timeEl.textContent = el + 's';
+  }
+
+  // Check if all parallel agents are done
+  const allParallelDone = [...PARALLEL_AGENTS].every(a => agentState[a].status === 'done' || agentState[a].status === 'idle');
+  if (allParallelDone) {
+    document.getElementById('parallel-group').classList.add('done');
+  }
+
+  updateParallelIndicator();
+  updateStatusText();
+
+  // After parser is done, try fetching the parsed paper for the Paper tab
+  if (name === 'parser' && !paperFetched && currentJobId) {
+    paperFetched = true;
+    setTimeout(() => fetchParsedPaper(currentJobId), 1000);
+  }
+}
+
+function updateStatusText() {
+  if (activeAgents.size === 0) return;
+  if (activeAgents.size > 1) {
+    const names = [...activeAgents].map(n => n.replace('_', ' ')).join(', ');
+    setStatus('running', activeAgents.size + ' parallel: ' + names);
+  } else {
+    const name = [...activeAgents][0];
+    setStatus('running', name.replace('_', ' ') + ' agent');
+  }
+}
+
+function addAgentTerminalLine(name, html) {
+  const term = document.getElementById('ac-term-' + name);
+  if (!term) return;
+  const line = document.createElement('div');
+  line.className = 'ac-activity-line';
+  line.innerHTML = html;
+  term.appendChild(line);
+  while (term.children.length > 4) term.removeChild(term.firstChild);
+}
+
+function incrementAgentTools(name) {
+  if (!agentState[name]) return;
+  agentState[name].tools++;
+  const el = document.getElementById('ac-tools-' + name);
+  if (el) el.textContent = agentState[name].tools + ' tools';
+  if (agentState[name].startTime) {
+    const elapsed = ((Date.now() - agentState[name].startTime) / 1000).toFixed(0);
+    const timeEl = document.getElementById('ac-time-' + name);
+    if (timeEl) timeEl.textContent = elapsed + 's';
+  }
+}
+
+function resetAgentChips() {
+  document.querySelectorAll('.agent-card-live').forEach(c => {
+    c.classList.remove('active', 'done');
+  });
+  document.getElementById('parallel-group').classList.remove('done');
+  AGENT_NAMES.forEach(name => {
+    agentState[name] = { tools: 0, startTime: null, status: 'idle' };
+    const term = document.getElementById('ac-term-' + name);
+    if (term) term.innerHTML = '';
+    const badge = document.getElementById('ac-status-' + name);
+    if (badge) badge.textContent = '';
+    const tools = document.getElementById('ac-tools-' + name);
+    if (tools) tools.textContent = '0 tools';
+    const time = document.getElementById('ac-time-' + name);
+    if (time) time.textContent = '';
+  });
+  completedAgents = 0;
+  activeAgents.clear();
+  document.getElementById('agents-counter').textContent = '0 / ' + TOTAL_AGENTS;
+  document.getElementById('parallel-indicator').style.display = 'none';
+  document.getElementById('checker-result').innerHTML = '';
+  paperFetched = false;
+}
+
+// Fetch parsed paper for the Paper tab
+async function fetchParsedPaper(jobId) {
+  try {
+    const resp = await fetch('/api/paper/' + jobId);
+    const data = await resp.json();
+    if (data.paper_md) {
+      const paperView = document.getElementById('paper-view');
+      paperView.innerHTML = '<div class="paper-md">' + simpleMarkdown(data.paper_md) + '</div>';
+    }
+  } catch (err) {
+    console.error('Failed to fetch parsed paper:', err);
+  }
+}
+
+// Start the review pipeline
+async function startReview() {
+  const paperFile = document.getElementById('paper-file').files[0];
+  if (!paperFile) {
+    alert('Please select a paper PDF.');
+    return;
+  }
+  const apiKey = document.getElementById('api-key').value.trim();
+  if (!apiKey) {
+    alert('Please enter your Anthropic API key.');
+    document.getElementById('api-key').focus();
+    return;
+  }
+
+  btn.disabled = true;
+  document.getElementById('btn-stop').style.display = 'block';
+  log.innerHTML = '';
+  resetAgentChips();
+  reviewContent.innerHTML = '<div class="review-empty">Review in progress...</div>';
+  document.getElementById('review-ratings').style.display = 'none';
+  document.getElementById('review-status').textContent = 'Running...';
+  document.getElementById('paper-view').innerHTML = '<div class="review-empty">Waiting for parser...</div>';
+  setStatus('running', 'Starting...');
+  totalTokens = 0;
+  updateTokenDisplay();
+  startTime = Date.now();
+  elapsedTimer = setInterval(() => {
+    const s = ((Date.now() - startTime) / 1000).toFixed(0);
+    elapsedText.textContent = s + 's';
+    // Update running agent elapsed times live
+    activeAgents.forEach(name => {
+      if (agentState[name].startTime) {
+        const elapsed = ((Date.now() - agentState[name].startTime) / 1000).toFixed(0);
+        const timeEl = document.getElementById('ac-time-' + name);
+        if (timeEl) timeEl.textContent = elapsed + 's';
+      }
+    });
+  }, 1000);
+
+  addLog('Starting AgentReview pipeline...', 'log-system');
+
+  const formData = new FormData();
+  formData.append('paper_pdf', paperFile);
+  formData.append('api_key', apiKey);
+  formData.append('review_mode', document.getElementById('review-mode').value);
+  formData.append('model', document.getElementById('model').value);
+  formData.append('enable_injection', document.getElementById('opt-injection').checked);
+  formData.append('enable_novelty', document.getElementById('opt-novelty').checked);
+  formData.append('enable_baselines', document.getElementById('opt-baselines').checked);
+  formData.append('enable_soundness', document.getElementById('opt-soundness').checked);
+  formData.append('enable_code_reviewer', document.getElementById('opt-code-review').checked);
+  formData.append('enable_writing_quality', document.getElementById('opt-writing-quality').checked);
+  formData.append('enable_reproducibility', document.getElementById('opt-reproducibility').checked);
+  formData.append('enable_ethics_limitations', document.getElementById('opt-ethics').checked);
+
+  suppFiles.forEach(f => formData.append('supplementary', f));
+
+  try {
+    const resp = await fetch('/api/run', { method: 'POST', body: formData });
+    const data = await resp.json();
+    if (data.error) {
+      addLog(escapeHtml(data.error), 'log-error');
+      setStatus('error', 'Failed');
+      btn.disabled = false;
+      clearInterval(elapsedTimer);
+      return;
+    }
+
+    currentJobId = data.job_id;
+    addLog('Job <b>' + data.job_id + '</b> started', 'log-system');
+
+    if (eventSource) eventSource.close();
+    eventSource = new EventSource('/api/events/' + data.job_id);
+    eventSource.onmessage = (ev) => {
+      const e = JSON.parse(ev.data);
+      handleEvent(e);
+    };
+    eventSource.onerror = () => {
+      setStatus('error', 'Connection lost');
+      eventSource.close();
+      btn.disabled = false;
+      document.getElementById('btn-stop').style.display = 'none';
+      clearInterval(elapsedTimer);
+    };
+  } catch (err) {
+    addLog(escapeHtml(String(err)), 'log-error');
+    setStatus('error', 'Failed');
+    btn.disabled = false;
+    document.getElementById('btn-stop').style.display = 'none';
+    clearInterval(elapsedTimer);
+  }
+}
+
+async function stopPipeline() {
+  if (!currentJobId) return;
+  const stopBtn = document.getElementById('btn-stop');
+  stopBtn.disabled = true;
+  stopBtn.textContent = 'Stopping...';
+  try {
+    await fetch('/api/stop/' + currentJobId, { method: 'POST' });
+    addLog('Stop requested...', 'log-error');
+  } catch (err) {
+    addLog('Failed to stop: ' + escapeHtml(String(err)), 'log-error');
+  }
+}
+
+function handleEvent(e) {
+  switch (e.type) {
+    case 'stage':
+      setStatus('running', e.stage || 'Working...');
+      addLog('&#9654; ' + escapeHtml(e.message), 'log-stage');
+      break;
+
+    case 'agent': {
+      const agentName = e.agent;
+      setAgentActive(agentName);
+      // Detect parallel launch
+      if (PARALLEL_AGENTS.has(agentName) && activeAgents.size > 1) {
+        addLog('&#x26A1; <b>' + escapeHtml(agentName) + '</b> agent launched (parallel)', 'log-parallel');
+      } else {
+        addLog('&#x1F916; <b>' + escapeHtml(agentName) + '</b> agent' +
+          (e.description ? ' -- ' + escapeHtml(e.description) : ''), 'log-agent');
+      }
+      break;
+    }
+
+    case 'task_started':
+      if (e.agent) setAgentActive(e.agent);
+      addLog('&#x25B6; ' + escapeHtml(e.message || 'Subagent started'), 'log-agent');
+      break;
+
+    case 'thinking': {
+      const agent = e.agent || findActiveAgent(e);
+      addLog(escapeHtml(e.message), 'log-thinking');
+      if (agent) {
+        addAgentTerminalLine(agent, '<span class="ac-think">' + escapeHtml((e.message || '').substring(0, 80)) + '</span>');
+      }
+      break;
+    }
+
+    case 'text': {
+      const agent = e.agent || findActiveAgent(e);
+      addLog(escapeHtml(e.message), 'log-text');
+      if (agent) {
+        addAgentTerminalLine(agent, escapeHtml((e.message || '').substring(0, 80)));
+      }
+      break;
+    }
+
+    case 'tool': {
+      const agent = e.agent || findActiveAgent(e);
+      const toolName = e.tool || '';
+      const summary = e.summary || '';
+      addLog('<span class="tool-name">' + escapeHtml(toolName) + '</span> ' +
+        '<span class="tool-path">' + escapeHtml(summary) + '</span>', 'log-tool');
+      if (agent) {
+        let lineHtml = '<span class="ac-tool">' + escapeHtml(toolName) + '</span> ';
+        if (toolName === 'WebSearch') {
+          lineHtml += '<span class="ac-search">' + escapeHtml(summary.substring(0, 50)) + '</span>';
+        } else {
+          lineHtml += '<span class="ac-path">' + escapeHtml(summary.substring(0, 50)) + '</span>';
+        }
+        addAgentTerminalLine(agent, lineHtml);
+        incrementAgentTools(agent);
+      }
+      break;
+    }
+
+    case 'tool_result':
+      break;
+
+    case 'task_progress':
+      if (e.total_tokens !== undefined) totalTokens = e.total_tokens;
+      updateTokenDisplay();
+      break;
+
+    case 'task_done': {
+      const agent = e.agent || findDoneAgent(e);
+      addLog('&#x2714; ' + escapeHtml(e.message || 'Done'), 'log-progress');
+      if (agent) setAgentDone(agent);
+      break;
+    }
+
+    case 'error':
+      addLog(escapeHtml(e.message), 'log-error');
+      setStatus('error', 'Error');
+      break;
+
+    case 'result':
+      addLog(escapeHtml(e.message || '').substring(0, 500), 'log-text');
+      break;
+
+    case 'done': {
+      if (e.total_tokens !== undefined) totalTokens = e.total_tokens;
+      updateTokenDisplay();
+      // Mark any remaining active agents as done
+      [...activeAgents].forEach(name => setAgentDone(name));
+      const tokStr = totalTokens > 0 ? ' | ' + formatTokens(totalTokens) + ' tokens' : '';
+      const costStr = e.total_cost_usd ? ' | $' + e.total_cost_usd.toFixed(2) : '';
+      addLog('&#x2705; Review complete! (' + (e.duration || '?') + 's' + tokStr + costStr + ')', 'log-done');
+      setStatus('done', e.status === 'completed' ? 'Completed' : e.status);
+      if (eventSource) eventSource.close();
+      btn.disabled = false;
+      document.getElementById('btn-stop').style.display = 'none';
+      clearInterval(elapsedTimer);
+
+      if (e.has_review && currentJobId) {
+        fetchReview(currentJobId);
+      }
+      break;
+    }
+
+    case 'system':
+      addLog(escapeHtml(e.message || ''), 'log-system');
+      break;
+
+    case 'heartbeat':
+      break;
+
+    default:
+      if (e.message) addLog(escapeHtml(e.message), 'log-system');
+  }
+}
+
+// Find which active agent likely produced this event (for parallel mode)
+function findActiveAgent(e) {
+  if (e.agent && activeAgents.has(e.agent)) return e.agent;
+  if (activeAgents.size === 1) return [...activeAgents][0];
+  // For parallel agents, infer from tool/message content
+  if (e.tool === 'WebSearch' || e.tool === 'WebFetch') {
+    const msg = (e.summary || e.message || '').toLowerCase();
+    if (msg.includes('baseline') || msg.includes('sota') || msg.includes('leaderboard') || msg.includes('benchmark')) {
+      if (activeAgents.has('baselines')) return 'baselines';
+    }
+    if (msg.includes('novel') || msg.includes('prior') || msg.includes('related work') || msg.includes('contribution')) {
+      if (activeAgents.has('novelty')) return 'novelty';
+    }
+    if (msg.includes('sound') || msg.includes('method') || msg.includes('statistic')) {
+      if (activeAgents.has('soundness')) return 'soundness';
+    }
+  }
+  if (e.tool === 'Bash') {
+    const msg = (e.summary || e.message || '').toLowerCase();
+    if (msg.includes('inject') || msg.includes('strings') || msg.includes('pdftotext') || msg.includes('hidden')) {
+      if (activeAgents.has('injection_detector')) return 'injection_detector';
+    }
+    if (msg.includes('mineru') || msg.includes('parse')) {
+      if (activeAgents.has('parser')) return 'parser';
+    }
+  }
+  if (e.tool === 'Grep' || e.tool === 'Glob') {
+    if (activeAgents.has('code_reviewer')) return 'code_reviewer';
+  }
+  return activeAgents.size > 0 ? [...activeAgents][0] : null;
+}
+
+function findDoneAgent(e) {
+  const msg = (e.message || '').toLowerCase();
+  for (const name of activeAgents) {
+    if (msg.includes(name.replace('_', ' ')) || msg.includes(name)) return name;
+  }
+  if (activeAgents.size === 1) return [...activeAgents][0];
+  return null;
+}
+
+async function fetchReview(jobId) {
+  try {
+    const resp = await fetch('/api/review/' + jobId);
+    const data = await resp.json();
+    if (data.review_md) {
+      renderReview(data.review_md, data.review_json || {});
+    }
+  } catch (err) {
+    console.error('Failed to fetch review:', err);
+  }
+}
+
+function renderReview(markdown, ratings) {
+  document.getElementById('review-status').textContent = 'Complete';
+
+  // Show checker badge if review_checker ran
+  if (agentState['review_checker'].status === 'done') {
+    const checkerEl = document.getElementById('checker-result');
+    checkerEl.innerHTML = '<span class="checker-badge pass">Verified</span>';
+  }
+
+  // Render ratings bar
+  if (ratings && ratings.recommendation) {
+    const ratingsPanel = document.getElementById('review-ratings');
+    ratingsPanel.style.display = 'block';
+
+    const rec = ratings.recommendation;
+    const recDisplay = document.getElementById('recommendation-display');
+    let recClass = 'borderline';
+    let recText = 'Borderline';
+    if (rec.rating >= 7) { recClass = 'accept'; recText = 'Accept'; }
+    else if (rec.rating >= 5) { recClass = 'borderline'; recText = 'Borderline'; }
+    else { recClass = 'reject'; recText = 'Reject'; }
+    recDisplay.innerHTML = '<div class="recommendation-badge ' + recClass + '">' +
+      rec.rating + '/10 -- ' + recText + '</div>';
+
+    const ratingBar = document.getElementById('rating-bar');
+    ratingBar.innerHTML = '';
+    const ratingFields = [
+      { key: 'soundness', label: 'Sound.', max: 4 },
+      { key: 'presentation', label: 'Pres.', max: 4 },
+      { key: 'contribution', label: 'Contr.', max: 4 },
+      { key: 'originality', label: 'Orig.', max: 4 },
+      { key: 'confidence', label: 'Conf.', max: 5 },
+    ];
+    ratingFields.forEach(f => {
+      const r = ratings[f.key];
+      if (!r) return;
+      const val = r.rating;
+      let cls = 'mid';
+      if (val >= f.max * 0.75) cls = 'high';
+      else if (val <= f.max * 0.35) cls = 'low';
+      const item = document.createElement('div');
+      item.className = 'rating-item';
+      item.innerHTML = '<div class="rating-label">' + f.label + '</div>' +
+        '<div class="rating-value ' + cls + '">' + val + '/' + f.max + '</div>';
+      ratingBar.appendChild(item);
+    });
+  }
+
+  reviewContent.innerHTML = '<div class="review-md">' + simpleMarkdown(markdown) + '</div>';
+}
+
+function simpleMarkdown(md) {
+  let html = escapeHtml(md);
+  html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
+  html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
+  html = html.replace(/^# (.+)$/gm, '<h2>$1</h2>');
+  html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
+  html = html.replace(/`(.+?)`/g, '<code>$1</code>');
+  html = html.replace(/^&gt; (.+)$/gm, '<blockquote>$1</blockquote>');
+  html = html.replace(/^\d+\. (.+)$/gm, '<li>$1</li>');
+  html = html.replace(/^- (.+)$/gm, '<li>$1</li>');
+  html = html.replace(/(<li>.*<\/li>\n?)+/g, '<ul>$&</ul>');
+  html = html.replace(/\n\n/g, '</p><p>');
+  html = '<p>' + html + '</p>';
+  html = html.replace(/<p><\/p>/g, '');
+  html = html.replace(/<p>(<h[23]>)/g, '$1');
+  html = html.replace(/(<\/h[23]>)<\/p>/g, '$1');
+  html = html.replace(/<p>(<ul>)/g, '$1');
+  html = html.replace(/(<\/ul>)<\/p>/g, '$1');
+  html = html.replace(/<p>(<blockquote>)/g, '$1');
+  html = html.replace(/(<\/blockquote>)<\/p>/g, '$1');
+  return html;
+}
+
+// Drag and drop handlers
+['paper-dropzone', 'supp-dropzone'].forEach(id => {
+  const el = document.getElementById(id);
+  el.addEventListener('dragover', e => { e.preventDefault(); el.classList.add('dragover'); });
+  el.addEventListener('dragleave', () => el.classList.remove('dragover'));
+  el.addEventListener('drop', e => {
+    e.preventDefault();
+    el.classList.remove('dragover');
+    const input = el.querySelector('input[type="file"]');
+    if (e.dataTransfer.files.length > 0) {
+      input.files = e.dataTransfer.files;
+      input.dispatchEvent(new Event('change'));
+    }
+  });
+});
+</script>
+</body>
+</html>
